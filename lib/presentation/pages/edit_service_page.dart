@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import '../providers/service_provider.dart';
 
 class Service {
   final String id;
@@ -19,6 +20,28 @@ class Service {
     this.isDefaultForNewClients = false,
     this.priceType = 'Fixed price',
   });
+
+  // Convert Service to ServiceModel
+  ServiceModel toServiceModel() {
+    return ServiceModel(
+      id: this.id,
+      name: this.name,
+      duration: this.duration,
+      price: this.price,
+      color: this.color,
+    );
+  }
+
+  // Create Service from ServiceModel
+  static Service fromServiceModel(ServiceModel model) {
+    return Service(
+      id: model.id,
+      name: model.name,
+      duration: model.duration,
+      price: model.price,
+      color: model.color,
+    );
+  }
 }
 
 class EditServicePage extends StatefulWidget {
@@ -371,7 +394,7 @@ class _EditServicePageState extends State<EditServicePage> {
     return 'Custom';
   }
 
-  void _saveService() {
+void _saveService() {
     final updatedService = Service(
       id: widget.service.id,
       name: _nameController.text,
@@ -381,7 +404,7 @@ class _EditServicePageState extends State<EditServicePage> {
       isDefaultForNewClients: _isDefaultForNewClients,
       priceType: _priceType,
     );
-    Navigator.of(context).pop(updatedService);
+    Navigator.of(context).pop(updatedService.toServiceModel());
   }
 
   @override

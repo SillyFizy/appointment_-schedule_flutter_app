@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/service_provider.dart';
 import 'edit_service_page.dart';
 
 class ServicesPage extends StatefulWidget {
@@ -6,14 +8,8 @@ class ServicesPage extends StatefulWidget {
   _ServicesPageState createState() => _ServicesPageState();
 }
 
-class _ServicesPageState extends State<ServicesPage> with SingleTickerProviderStateMixin {
-  final List<Service> services = [
-    Service(id: '1', name: 'Facial', duration: Duration(hours: 1), price: 50, color: Colors.blue),
-    Service(id: '2', name: 'Lash lift', duration: Duration(hours: 1), price: 50, color: Colors.green),
-    Service(id: '3', name: 'Eyebrow wax', duration: Duration(minutes: 25), price: 50, color: Colors.purple),
-    Service(id: '4', name: 'Lip wax', duration: Duration(minutes: 20), price: 50, color: Colors.blue),
-  ];
-
+class _ServicesPageState extends State<ServicesPage>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
   bool _isDeleteMode = false;
@@ -41,43 +37,54 @@ class _ServicesPageState extends State<ServicesPage> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvoked: (didPop) {
-        if (didPop) return;
-        _handlePop();
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: Icon(_isDeleteMode ? Icons.close : Icons.arrow_back, color: Colors.black),
-            onPressed: _isDeleteMode ? _exitDeleteMode : _handlePop,
-          ),
-          title: Text('Services', style: TextStyle(color: Colors.black)),
-          backgroundColor: Colors.white,
-          elevation: 0,
-          actions: [
-            IconButton(
-              icon: Icon(_isDeleteMode ? Icons.delete : Icons.delete_outline, color: Colors.black),
-              onPressed: _isDeleteMode ? _deleteSelectedServices : _enterDeleteMode,
-            ),
-          ],
-        ),
-        body: ListView.builder(
-          itemCount: services.length,
-          itemBuilder: (context, index) {
-            return _buildServiceItem(services[index]);
+    return Consumer<ServiceProvider>(
+      builder: (context, serviceProvider, child) {
+        return PopScope(
+          canPop: false,
+          onPopInvoked: (didPop) {
+            if (didPop) return;
+            _handlePop();
           },
-        ),
-        floatingActionButton: _isDeleteMode ? null : ScaleTransition(
-          scale: _animation,
-          child: FloatingActionButton(
-            onPressed: _addNewService,
-            child: Icon(Icons.add),
-            backgroundColor: Colors.blue,
+          child: Scaffold(
+            appBar: AppBar(
+              leading: IconButton(
+                icon: Icon(_isDeleteMode ? Icons.close : Icons.arrow_back,
+                    color: Colors.black),
+                onPressed: _isDeleteMode ? _exitDeleteMode : _handlePop,
+              ),
+              title: Text('Services', style: TextStyle(color: Colors.black)),
+              backgroundColor: Colors.white,
+              elevation: 0,
+              actions: [
+                IconButton(
+                  icon: Icon(
+                      _isDeleteMode ? Icons.delete : Icons.delete_outline,
+                      color: Colors.black),
+                  onPressed: _isDeleteMode
+                      ? () => _deleteSelectedServices(serviceProvider)
+                      : _enterDeleteMode,
+                ),
+              ],
+            ),
+            body: ListView.builder(
+              itemCount: serviceProvider.services.length,
+              itemBuilder: (context, index) {
+                return _buildServiceItem(serviceProvider.services[index]);
+              },
+            ),
+            floatingActionButton: _isDeleteMode
+                ? null
+                : ScaleTransition(
+                    scale: _animation,
+                    child: FloatingActionButton(
+                      onPressed: () => _addNewService(serviceProvider),
+                      child: Icon(Icons.add),
+                      backgroundColor: Colors.blue,
+                    ),
+                  ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -88,11 +95,11 @@ class _ServicesPageState extends State<ServicesPage> with SingleTickerProviderSt
     }
   }
 
-  Widget _buildServiceItem(Service service) {
+  Widget _buildServiceItem(ServiceModel service) {
     return GestureDetector(
       onTap: _isDeleteMode
           ? () => _toggleServiceSelection(service.id)
-          : () => _editService(service),
+          : () => _editService(service, context.read<ServiceProvider>()),
       child: Container(
         margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
@@ -130,41 +137,61 @@ class _ServicesPageState extends State<ServicesPage> with SingleTickerProviderSt
     );
   }
 
-  void _addNewService() async {
-    final newService = Service(
-      id: (services.length + 1).toString(),
+  void _addNewService(ServiceProvider serviceProvider) async {
+    final newService = ServiceModel(
+      id: (serviceProvider.services.length + 1).toString(),
       name: 'New Service',
       duration: Duration(hours: 1),
       price: 0,
       color: Colors.blue,
     );
 
-    final updatedService = await Navigator.of(context).push<Service>(
+    final updatedService = await Navigator.of(context).push<ServiceModel>(
       MaterialPageRoute(
-        builder: (context) => EditServicePage(service: newService),
+        builder: (context) => EditServicePage(
+            service: Service(
+          id: newService.id,
+          name: newService.name,
+          duration: newService.duration,
+          price: newService.price,
+          color: newService.color,
+        )),
       ),
     );
 
     if (updatedService != null) {
-      setState(() {
-        services.add(updatedService);
-      });
+      serviceProvider.addService(ServiceModel(
+        id: updatedService.id,
+        name: updatedService.name,
+        duration: updatedService.duration,
+        price: updatedService.price,
+        color: updatedService.color,
+      ));
     }
   }
 
-  void _editService(Service service) async {
+  void _editService(
+      ServiceModel service, ServiceProvider serviceProvider) async {
     final updatedService = await Navigator.of(context).push<Service>(
       MaterialPageRoute(
-        builder: (context) => EditServicePage(service: service),
+        builder: (context) => EditServicePage(
+            service: Service(
+          id: service.id,
+          name: service.name,
+          duration: service.duration,
+          price: service.price,
+          color: service.color,
+        )),
       ),
     );
     if (updatedService != null) {
-      setState(() {
-        final index = services.indexWhere((s) => s.id == service.id);
-        if (index != -1) {
-          services[index] = updatedService;
-        }
-      });
+      serviceProvider.updateService(ServiceModel(
+        id: updatedService.id,
+        name: updatedService.name,
+        duration: updatedService.duration,
+        price: updatedService.price,
+        color: updatedService.color,
+      ));
     }
   }
 
@@ -192,10 +219,8 @@ class _ServicesPageState extends State<ServicesPage> with SingleTickerProviderSt
     });
   }
 
-  void _deleteSelectedServices() {
-    setState(() {
-      services.removeWhere((service) => _selectedServices.contains(service.id));
-      _exitDeleteMode();
-    });
+  void _deleteSelectedServices(ServiceProvider serviceProvider) {
+    serviceProvider.deleteServices(_selectedServices.toList());
+    _exitDeleteMode();
   }
 }

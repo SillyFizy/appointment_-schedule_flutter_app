@@ -25,7 +25,7 @@ class _CalendarPageState extends State<CalendarPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelectedDay());
 
     // Set up periodic refresh every 30 seconds
-    _refreshTimer = Timer.periodic(Duration(seconds: 30), (_) {
+    _refreshTimer = Timer.periodic(Duration(seconds: 10), (_) {
       _loadAppointments();
       print("Auto refresh triggered. Count: ${++_refreshCount}");
     });
@@ -65,10 +65,10 @@ class _CalendarPageState extends State<CalendarPage> {
         ],
       },
       {
-        'date': '2024-10-15',
+        'date': '2024-10-18',
         'appointments': [
           {
-            'name': 'Emma Wilson',
+            'name': 'Anwar Nowrozi',
             'type': 'Pedicure',
             'doneBy': 'Jane Smith',
             'startTime': '10:00 AM',

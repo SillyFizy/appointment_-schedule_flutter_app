@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_healthcare_app/app.dart';  // Import the BookingApp
+import 'package:provider/provider.dart';
+import 'app.dart';
+import './presentation/providers/service_provider.dart';  // Make sure to create this file in the same directory
 
 void main() {
-  runApp(const BookingApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => ServiceProvider(),
+      child: const BookingApp(),
+    ),
+  );
 }

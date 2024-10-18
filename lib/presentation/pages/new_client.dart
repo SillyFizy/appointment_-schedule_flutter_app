@@ -52,7 +52,7 @@ class _NewClientPageState extends State<NewClientPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('More options', style: TextStyle(color: Colors.blue)),
-                  Text('(Photo, Email, Notes, Location, Birthday)', style: TextStyle(color: Colors.grey)),
+                  Text('(Photo, Email, Notes, Birthday)', style: TextStyle(color: Colors.grey)),
                 ],
               ),
             ),
