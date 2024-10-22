@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/appointment_provider.dart';
+import '../blocs/appointment_card.dart';
+import 'all_appointments_page.dart';
 
 class HomePage extends StatelessWidget {
   @override
@@ -21,7 +25,7 @@ class HomePage extends StatelessWidget {
                   SizedBox(height: 30),
                   _buildServicesSection(context),
                   SizedBox(height: 30),
-                  _buildAppointmentSection(),
+                  _buildAppointmentSection(context),
                 ],
               ),
             ),
@@ -157,76 +161,78 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildAppointmentSection() {
+  Widget _buildAppointmentSection(BuildContext context) {
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Appointment',
+              "Today's Appointments",
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            Text(
-              'See All',
-              style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => AllAppointmentsPage()),
+                );
+              },
+              child: Text(
+                'See All',
+                style: TextStyle(color: Colors.blue),
+              ),
             ),
           ],
         ),
         SizedBox(height: 15),
-        _buildAppointmentCard(),
+        Consumer<AppointmentProvider>(
+          builder: (context, appointmentProvider, child) {
+            final todayAppointments =
+                appointmentProvider.getTodayAppointments();
+            final displayAppointments = todayAppointments.take(2).toList();
+
+            return Column(
+              children: displayAppointments.isEmpty
+                  ? [Text('No appointments for today')]
+                  : displayAppointments
+                      .map((appointment) => _buildAppointmentCard(appointment))
+                      .toList(),
+            );
+          },
+        ),
       ],
     );
   }
 
-  Widget _buildAppointmentCard() {
-    return Container(
-      padding: EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 25,
-            backgroundColor: Colors.grey[300],
-            child: Icon(Icons.person, color: Colors.grey[600]),
-          ),
-          SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Dr. Prem Tiwari',
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                SizedBox(height: 3),
-                Text('Orthopedic',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-                SizedBox(height: 3),
-                Row(
-                  children: [
-                    Icon(Icons.calendar_today, size: 14, color: Colors.blue),
-                    SizedBox(width: 5),
-                    Text('Wed Nov 20 • 8:00 - 8:30 AM',
-                        style:
-                            TextStyle(fontSize: 12, color: Colors.grey[600])),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Icon(Icons.more_vert, color: Colors.grey),
-        ],
+  Widget _buildAppointmentCard(Appointment appointment) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 15.0),
+      child: AppointmentCard(
+        name: appointment.name,
+        type: appointment.type,
+        doneBy: appointment.doneBy,
+        startTime: appointment.startTime,
+        endTime: appointment.endTime,
+        total: appointment.total,
+        isCompleted: appointment.isCompleted,
+        colorBar: appointment.colorBar,
+        additionalInfo: null,
       ),
     );
+  }
+
+  String _calculateDuration(DateTime startTime, DateTime endTime) {
+    final difference = endTime.difference(startTime);
+    return '${difference.inMinutes} min';
+  }
+
+  DateTime _parseTime(String time) {
+    final parts = time.split(':');
+    final hour = int.parse(parts[0]);
+    final minute = int.parse(parts[1].split(' ')[0]);
+    final isPM = time.toLowerCase().contains('pm');
+    return DateTime(2024, 1, 1, isPM && hour != 12 ? hour + 12 : hour, minute);
   }
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
+import 'package:provider/provider.dart';
+import '../providers/appointment_provider.dart';
 import '../blocs/appointment_card.dart';
+import 'dart:async';
 
 class CalendarPage extends StatefulWidget {
   @override
@@ -10,86 +12,51 @@ class CalendarPage extends StatefulWidget {
 class _CalendarPageState extends State<CalendarPage> {
   late DateTime currentDate;
   ScrollController _scrollController = ScrollController();
-  late StreamController<List<Map<String, dynamic>>> _appointmentsController;
-  List<Map<String, dynamic>> _appointments = [];
   Timer? _refreshTimer;
   int _refreshCount = 0;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     currentDate = DateTime.now();
-    _appointmentsController =
-        StreamController<List<Map<String, dynamic>>>.broadcast();
-    _loadAppointments();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelectedDay());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToSelectedDay();
+      _refreshAppointments(); // Initial fetch
+    });
 
     // Set up periodic refresh every 30 seconds
-    _refreshTimer = Timer.periodic(Duration(seconds: 10), (_) {
-      _loadAppointments();
+    _refreshTimer = Timer.periodic(Duration(seconds: 30), (_) {
+      _refreshAppointments();
       print("Auto refresh triggered. Count: ${++_refreshCount}");
     });
   }
 
-  Future<void> _loadAppointments() async {
-    print("Loading appointments...");
-    // Simulate an API call with a short delay
-    await Future.delayed(Duration(milliseconds: 500));
+  Future<void> _refreshAppointments() async {
+    if (_isLoading) return; // Prevent multiple simultaneous refreshes
 
-    // This is where you'd typically make an API call
-    // For now, we'll use dummy data
-    _appointments = [
-      {
-        'date': '2024-10-13',
-        'appointments': [
-          {
-            'name': 'John Doe',
-            'type': 'Full set',
-            'doneBy': 'Jane Smith',
-            'startTime': '9:30 AM',
-            'endTime': '11:30 AM',
-            'total': 'IQD50',
-            'isCompleted': true,
-            'colorBar': Colors.blue,
-          },
-          {
-            'name': 'Alice Johnson',
-            'type': 'Manicure',
-            'doneBy': 'Bob Brown',
-            'startTime': '1:00 PM',
-            'endTime': '2:00 PM',
-            'total': 'IQD30',
-            'isCompleted': false,
-            'colorBar': Colors.green,
-          },
-        ],
-      },
-      {
-        'date': '2024-10-18',
-        'appointments': [
-          {
-            'name': 'Anwar Nowrozi',
-            'type': 'Pedicure',
-            'doneBy': 'Jane Smith',
-            'startTime': '10:00 AM',
-            'endTime': '11:30 AM',
-            'total': 'IQD40',
-            'isCompleted': true,
-            'colorBar': Colors.purple,
-          },
-        ],
-      },
-    ];
+    setState(() {
+      _isLoading = true;
+    });
 
-    if (!_appointmentsController.isClosed) {
-      _appointmentsController.add(_appointments);
-    }
-
-    // Force a rebuild of the widget tree
-    if (mounted) {
-      setState(() {
-        print("State updated. Current date: ${_formatDate(currentDate)}");
-      });
+    try {
+      final appointmentProvider =
+          Provider.of<AppointmentProvider>(context, listen: false);
+      await appointmentProvider.fetchAppointments();
+    } catch (e) {
+      // Show error message to user
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to refresh appointments. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -109,6 +76,17 @@ class _CalendarPageState extends State<CalendarPage> {
                     elevation: 0,
                     title: _buildCenteredTitle(),
                     actions: [
+                      if (_isLoading)
+                        Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        ),
                       TextButton(
                         child: Text(
                           'Today',
@@ -124,7 +102,7 @@ class _CalendarPageState extends State<CalendarPage> {
             ),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: _loadAppointments,
+                onRefresh: _refreshAppointments,
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -141,19 +119,7 @@ class _CalendarPageState extends State<CalendarPage> {
                       ),
                     ],
                   ),
-                  child: StreamBuilder<List<Map<String, dynamic>>>(
-                    stream: _appointmentsController.stream,
-                    initialData: _appointments,
-                    builder: (context, snapshot) {
-                      print(
-                          "StreamBuilder rebuilding. Has data: ${snapshot.hasData}");
-                      if (snapshot.hasData) {
-                        return _buildDaySchedule(snapshot.data!);
-                      } else {
-                        return Center(child: CircularProgressIndicator());
-                      }
-                    },
-                  ),
+                  child: _buildDaySchedule(),
                 ),
               ),
             ),
@@ -217,10 +183,9 @@ class _CalendarPageState extends State<CalendarPage> {
   void _goToToday() {
     setState(() {
       currentDate = DateTime.now();
-      print("Going to today: ${_formatDate(currentDate)}");
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelectedDay());
-    _loadAppointments();
+    _refreshAppointments();
   }
 
   Widget _buildWeekCalendar() {
@@ -245,7 +210,6 @@ class _CalendarPageState extends State<CalendarPage> {
                 currentDate = date;
               });
               _scrollToSelectedDay();
-              _appointmentsController.add(_appointments); // Trigger UI update
             },
           );
         },
@@ -267,15 +231,13 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
-  Widget _buildDayItem(
-      {required DateTime date,
-      required bool isSelected,
-      required VoidCallback onTap}) {
+  Widget _buildDayItem({
+    required DateTime date,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
-      onTap: () {
-        onTap();
-        print("Day tapped: ${_formatDate(date)}");
-      },
+      onTap: onTap,
       child: Container(
         width: 60,
         margin: EdgeInsets.symmetric(horizontal: 5),
@@ -311,56 +273,59 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
-  Widget _buildDaySchedule(List<Map<String, dynamic>> appointments) {
-    final selectedDayAppointments = appointments.firstWhere(
-      (dateGroup) => dateGroup['date'] == _formatDate(currentDate),
-      orElse: () => {'date': _formatDate(currentDate), 'appointments': []},
-    );
+  Widget _buildDaySchedule() {
+    return Consumer<AppointmentProvider>(
+      builder: (context, appointmentProvider, child) {
+        final appointments =
+            appointmentProvider.getAppointmentsForDate(currentDate);
 
-    print("Building schedule for date: ${_formatDate(currentDate)}");
-    print(
-        "Number of appointments: ${selectedDayAppointments['appointments'].length}");
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Text(
-            _formatDateForDisplay(currentDate),
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            itemCount: selectedDayAppointments['appointments'].length,
-            itemBuilder: (context, index) {
-              final appointment =
-                  selectedDayAppointments['appointments'][index];
-              return Padding(
-                padding: EdgeInsets.only(bottom: 16.0),
-                child: AppointmentCard(
-                  name: appointment['name'],
-                  type: appointment['type'],
-                  doneBy: appointment['doneBy'],
-                  startTime: appointment['startTime'],
-                  endTime: appointment['endTime'],
-                  total: appointment['total'],
-                  isCompleted: appointment['isCompleted'],
-                  colorBar: appointment['colorBar'],
-                  additionalInfo: appointment['additionalInfo'],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                _formatDateForDisplay(currentDate),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Expanded(
+              child: appointments.isEmpty
+                  ? Center(child: Text('No appointments for this day'))
+                  : ListView.builder(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: appointments.length,
+                      itemBuilder: (context, index) {
+                        final appointment = appointments[index];
+                        return Padding(
+                          padding: EdgeInsets.only(bottom: 16.0),
+                          child: AppointmentCard(
+                            name: appointment.name,
+                            type: appointment.type,
+                            doneBy: appointment.doneBy,
+                            startTime: appointment.startTime,
+                            endTime: appointment.endTime,
+                            total: appointment.total,
+                            isCompleted: appointment.isCompleted,
+                            colorBar: appointment.colorBar,
+                            additionalInfo: null,
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        );
+      },
     );
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  DateTime _parseTime(String time) {
+    final parts = time.split(':');
+    final hour = int.parse(parts[0]);
+    final minute = int.parse(parts[1].split(' ')[0]);
+    final isPM = time.toLowerCase().contains('pm');
+    return DateTime(2024, 1, 1, isPM && hour != 12 ? hour + 12 : hour, minute);
   }
 
   String _formatDateForDisplay(DateTime date) {
@@ -396,9 +361,8 @@ class _CalendarPageState extends State<CalendarPage> {
 
   @override
   void dispose() {
-    _appointmentsController.close();
-    _scrollController.dispose();
     _refreshTimer?.cancel();
+    _scrollController.dispose();
     super.dispose();
   }
 }
