@@ -33,7 +33,7 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   Future<void> _refreshAppointments() async {
-    if (_isLoading) return; // Prevent multiple simultaneous refreshes
+    if (_isLoading) return;
 
     setState(() {
       _isLoading = true;
@@ -44,7 +44,6 @@ class _CalendarPageState extends State<CalendarPage> {
           Provider.of<AppointmentProvider>(context, listen: false);
       await appointmentProvider.fetchAppointments();
     } catch (e) {
-      // Show error message to user
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to refresh appointments. Please try again.'),
@@ -101,26 +100,23 @@ class _CalendarPageState extends State<CalendarPage> {
               ),
             ),
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: _refreshAppointments,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.5),
-                        spreadRadius: 0,
-                        blurRadius: 10,
-                        offset: Offset(0, -5),
-                      ),
-                    ],
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
                   ),
-                  child: _buildDaySchedule(),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.5),
+                      spreadRadius: 0,
+                      blurRadius: 10,
+                      offset: Offset(0, -5),
+                    ),
+                  ],
                 ),
+                child: _buildDaySchedule(),
               ),
             ),
           ],
@@ -290,29 +286,68 @@ class _CalendarPageState extends State<CalendarPage> {
               ),
             ),
             Expanded(
-              child: appointments.isEmpty
-                  ? Center(child: Text('No appointments for this day'))
-                  : ListView.builder(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: appointments.length,
-                      itemBuilder: (context, index) {
-                        final appointment = appointments[index];
-                        return Padding(
-                          padding: EdgeInsets.only(bottom: 16.0),
-                          child: AppointmentCard(
-                            name: appointment.name,
-                            type: appointment.type,
-                            doneBy: appointment.doneBy,
-                            startTime: appointment.startTime,
-                            endTime: appointment.endTime,
-                            total: appointment.total,
-                            isCompleted: appointment.isCompleted,
-                            colorBar: appointment.colorBar,
-                            additionalInfo: null,
+              child: RefreshIndicator(
+                onRefresh: _refreshAppointments,
+                child: appointments.isEmpty
+                    ? ListView(
+                        physics: AlwaysScrollableScrollPhysics(),
+                        children: [
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.5,
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.event_busy,
+                                    size: 48,
+                                    color: Colors.grey[400],
+                                  ),
+                                  SizedBox(height: 16),
+                                  Text(
+                                    'No appointments for this day',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Pull to refresh',
+                                    style: TextStyle(
+                                      color: Colors.grey[400],
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                        );
-                      },
-                    ),
+                        ],
+                      )
+                    : ListView.builder(
+                        physics: AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: appointments.length,
+                        itemBuilder: (context, index) {
+                          final appointment = appointments[index];
+                          return Padding(
+                            padding: EdgeInsets.only(bottom: 16.0),
+                            child: AppointmentCard(
+                              name: appointment.name,
+                              type: appointment.type,
+                              doneBy: appointment.doneBy,
+                              startTime: appointment.startTime,
+                              endTime: appointment.endTime,
+                              total: appointment.total,
+                              isCompleted: appointment.isCompleted,
+                              colorBar: appointment.colorBar,
+                              additionalInfo: null,
+                            ),
+                          );
+                        },
+                      ),
+              ),
             ),
           ],
         );
