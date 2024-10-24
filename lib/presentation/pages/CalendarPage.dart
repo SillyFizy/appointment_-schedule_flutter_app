@@ -75,17 +75,6 @@ class _CalendarPageState extends State<CalendarPage> {
                     elevation: 0,
                     title: _buildCenteredTitle(),
                     actions: [
-                      if (_isLoading)
-                        Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          ),
-                        ),
                       TextButton(
                         child: Text(
                           'Today',
@@ -334,15 +323,7 @@ class _CalendarPageState extends State<CalendarPage> {
                           return Padding(
                             padding: EdgeInsets.only(bottom: 16.0),
                             child: AppointmentCard(
-                              name: appointment.name,
-                              type: appointment.type,
-                              doneBy: appointment.doneBy,
-                              startTime: appointment.startTime,
-                              endTime: appointment.endTime,
-                              total: appointment.total,
-                              isCompleted: appointment.isCompleted,
-                              colorBar: appointment.colorBar,
-                              additionalInfo: null,
+                              appointment: appointment,
                             ),
                           );
                         },

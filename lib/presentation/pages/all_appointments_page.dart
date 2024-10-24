@@ -36,15 +36,7 @@ class AllAppointmentsPage extends StatelessWidget {
 
   Widget _buildAppointmentCard(Appointment appointment) {
     return AppointmentCard(
-      name: appointment.name,
-      type: appointment.type,
-      doneBy: appointment.doneBy,
-      startTime: appointment.startTime,
-      endTime: appointment.endTime,
-      total: appointment.total,
-      isCompleted: appointment.isCompleted,
-      colorBar: appointment.colorBar,
-      additionalInfo: null,
+      appointment: appointment,
     );
   }
 }

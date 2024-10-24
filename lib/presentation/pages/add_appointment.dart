@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'add_client.dart';
 import '../providers/service_provider.dart';
+import '../providers/appointment_provider.dart';
 
 class AddAppointment extends StatefulWidget {
   @override
@@ -512,29 +513,67 @@ class _AddAppointmentState extends State<AddAppointment> {
     if (_selectedClient.isNotEmpty &&
         _selectedServices.isNotEmpty &&
         _reminder.isNotEmpty) {
-      // TODO: Implement API call to save the appointment
-      // API call would look something like this:
-      // apiService.createAppointment(
-      //   client: _selectedClient,
-      //   services: _selectedServices,
-      //   date: _selectedDate,
-      //   startTime: _startTime,
-      //   endTime: _endTime,
-      //   reminder: _reminder,
-      //   additionalMessage: _messageController.text,
-      // );
+      final appointmentProvider =
+          Provider.of<AppointmentProvider>(context, listen: false);
 
-      print('Appointment details:');
-      print('Client: $_selectedClient');
-      print('Services: ${_selectedServices.map((s) => s.name).join(', ')}');
-      print('Date: ${DateFormat('yyyy-MM-dd').format(_selectedDate)}');
-      print(
-          'Time: ${_startTime.format(context)} to ${_endTime.format(context)}');
-      print('Reminder: $_reminder');
-      print('Additional Message: ${_messageController.text}');
-      Navigator.pop(context);
+      // Calculate start and end times for each service
+      List<ServiceAppointment> serviceAppointments = [];
+      DateTime currentTime = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        _startTime.hour,
+        _startTime.minute,
+      );
+
+      for (var service in _selectedServices) {
+        final serviceStartTime = DateFormat('h:mm a').format(currentTime);
+        final serviceEndTime = DateFormat('h:mm a').format(
+          currentTime.add(service.duration),
+        );
+
+        serviceAppointments.add(
+          ServiceAppointment(
+            name: service.name,
+            startTime: serviceStartTime,
+            endTime: serviceEndTime,
+            doneBy: service
+                .name, // You might want to modify this based on your needs
+            price: service.price,
+          ),
+        );
+
+        currentTime = currentTime.add(service.duration);
+      }
+
+      try {
+        appointmentProvider.addAppointment(
+          _selectedDate,
+          clientName: _selectedClient,
+          serviceNames: _selectedServices.map((s) => s.name).toList(),
+          services: serviceAppointments,
+          doneBy: _selectedServices
+              .first.name, // You might want to modify this based on your needs
+          startTime: _startTime.format(context),
+          endTime: _endTime.format(context),
+          total:
+              'IQD${_selectedServices.fold(0, (sum, service) => sum + service.price)}',
+          reminder: _reminder,
+          additionalMessage: _messageController.text.isNotEmpty
+              ? _messageController.text
+              : null,
+        );
+
+        Navigator.pop(context);
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save appointment: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } else {
-      // Show a snackbar with an error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Please fill in all required fields'),

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 class Appointment {
   final String id;
   final String name;
+  final String phoneNumber;
   final String type;
   final String doneBy;
   final String startTime;
@@ -13,10 +14,14 @@ class Appointment {
   final bool isCompleted;
   final Color colorBar;
   final DateTime lastUpdated;
+  final List<ServiceAppointment> services;
+  final String? additionalMessage;
+  final String reminder;
 
   Appointment({
     required this.id,
     required this.name,
+    required this.phoneNumber,
     required this.type,
     required this.doneBy,
     required this.startTime,
@@ -25,22 +30,61 @@ class Appointment {
     required this.isCompleted,
     required this.colorBar,
     required this.lastUpdated,
+    required this.services,
+    this.additionalMessage,
+    required this.reminder,
   });
 
   factory Appointment.fromJson(Map<String, dynamic> json) {
+    // Handle services that might be either strings or maps
+    List<ServiceAppointment> parseServices(dynamic servicesJson) {
+      if (servicesJson == null) return [];
+
+      if (servicesJson is List<dynamic>) {
+        return servicesJson.map((service) {
+          if (service is String) {
+            // Convert legacy string format to ServiceAppointment
+            return ServiceAppointment(
+              name: service,
+              startTime: json['startTime'] as String? ?? '',
+              endTime: json['endTime'] as String? ?? '',
+              doneBy: json['doneBy'] as String? ?? '',
+              price: 0, // Default price for legacy data
+            );
+          } else if (service is Map<String, dynamic>) {
+            return ServiceAppointment.fromJson(service);
+          }
+          return ServiceAppointment(
+            name: 'Unknown Service',
+            startTime: '',
+            endTime: '',
+            doneBy: '',
+            price: 0,
+          );
+        }).toList();
+      }
+      return [];
+    }
+
     return Appointment(
-      id: json['id'] ?? '',
-      name: json['name'] ?? '',
-      type: json['type'] ?? '',
-      doneBy: json['doneBy'] ?? '',
-      startTime: json['startTime'] ?? '',
-      endTime: json['endTime'] ?? '',
-      total: json['total'] ?? '',
-      isCompleted: json['isCompleted'] ?? false,
-      colorBar: json['colorBar'] is Color ? json['colorBar'] : Colors.blue,
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      phoneNumber: json['phoneNumber'] as String? ?? '',
+      type: json['type'] as String? ?? '',
+      doneBy: json['doneBy'] as String? ?? '',
+      startTime: json['startTime'] as String? ?? '',
+      endTime: json['endTime'] as String? ?? '',
+      total: json['total'] as String? ?? '',
+      isCompleted: json['isCompleted'] as bool? ?? false,
+      colorBar: json['colorBar'] is int
+          ? Color(json['colorBar'] as int)
+          : Colors.blue,
       lastUpdated: json['lastUpdated'] != null
-          ? DateTime.parse(json['lastUpdated'])
+          ? DateTime.parse(json['lastUpdated'] as String)
           : DateTime.now(),
+      services: parseServices(json['services']),
+      additionalMessage: json['additionalMessage'] as String?,
+      reminder: json['reminder'] as String? ?? '',
     );
   }
 
@@ -48,6 +92,7 @@ class Appointment {
     return {
       'id': id,
       'name': name,
+      'phoneNumber': phoneNumber,
       'type': type,
       'doneBy': doneBy,
       'startTime': startTime,
@@ -56,6 +101,45 @@ class Appointment {
       'isCompleted': isCompleted,
       'colorBar': colorBar.value,
       'lastUpdated': lastUpdated.toIso8601String(),
+      'services': services.map((s) => s.toJson()).toList(),
+      'additionalMessage': additionalMessage,
+      'reminder': reminder,
+    };
+  }
+}
+
+class ServiceAppointment {
+  final String name;
+  final String startTime;
+  final String endTime;
+  final String doneBy;
+  final int price;
+
+  ServiceAppointment({
+    required this.name,
+    required this.startTime,
+    required this.endTime,
+    required this.doneBy,
+    required this.price,
+  });
+
+  factory ServiceAppointment.fromJson(Map<String, dynamic> json) {
+    return ServiceAppointment(
+      name: json['name'] as String? ?? '',
+      startTime: json['startTime'] as String? ?? '',
+      endTime: json['endTime'] as String? ?? '',
+      doneBy: json['doneBy'] as String? ?? '',
+      price: json['price'] as int? ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'startTime': startTime,
+      'endTime': endTime,
+      'doneBy': doneBy,
+      'price': price,
     };
   }
 }
@@ -65,151 +149,78 @@ class AppointmentProvider with ChangeNotifier {
   DateTime? _lastSyncTime;
   bool _isSyncing = false;
 
-  List<Map<String, dynamic>> get appointments => _appointments;
+  List<Map<String, dynamic>> get appointments => List.from(_appointments);
   bool get isSyncing => _isSyncing;
 
-  // Constructor to initialize data
   AppointmentProvider() {
     _loadInitialData();
   }
 
-  // Load initial dummy data
   void _loadInitialData() {
     _appointments = _getDummyData();
     notifyListeners();
   }
 
-  // Separate method for dummy data
   List<Map<String, dynamic>> _getDummyData() {
     return [
       {
-        'date': '2024-10-22', // Today
+        'date': '2024-10-24',
         'appointments': [
           {
             'id': '1',
             'name': 'Sarah Johnson',
+            'phoneNumber': '+1 234-567-8901',
             'type': 'Full Set Manicure',
             'doneBy': 'Emma White',
             'startTime': '9:00 AM',
             'endTime': '10:30 AM',
             'total': 'IQD75',
             'isCompleted': false,
-            'colorBar': Colors.blue,
+            'colorBar': Colors.blue.value,
             'lastUpdated': DateTime.now().toIso8601String(),
+            'services': [
+              {
+                'name': 'Full Set Manicure',
+                'startTime': '9:00 AM',
+                'endTime': '10:00 AM',
+                'doneBy': 'Emma White',
+                'price': 75,
+              },
+              {
+                'name': 'Hand Massage',
+                'startTime': '10:00 AM',
+                'endTime': '10:30 AM',
+                'doneBy': 'Emma White',
+                'price': 25,
+              }
+            ],
+            'reminder': '30 minutes before',
           },
           {
             'id': '2',
             'name': 'Michael Chen',
+            'phoneNumber': '+1 234-567-8902',
             'type': 'Haircut & Styling',
             'doneBy': 'James Wilson',
             'startTime': '11:00 AM',
             'endTime': '12:00 PM',
             'total': 'IQD45',
             'isCompleted': false,
-            'colorBar': Colors.green,
+            'colorBar': Colors.green.value,
             'lastUpdated': DateTime.now().toIso8601String(),
+            'services': [
+              {
+                'name': 'Haircut & Styling',
+                'startTime': '11:00 AM',
+                'endTime': '12:00 PM',
+                'doneBy': 'James Wilson',
+                'price': 45,
+              }
+            ],
+            'reminder': '1 hour before',
           },
         ],
       },
-      {
-        'date': '2024-10-23', // Tomorrow
-        'appointments': [
-          {
-            'id': '4',
-            'name': 'David Wilson',
-            'type': 'Beard Trim',
-            'doneBy': 'James Wilson',
-            'startTime': '10:00 AM',
-            'endTime': '10:30 AM',
-            'total': 'IQD25',
-            'isCompleted': false,
-            'colorBar': Colors.orange,
-            'lastUpdated': DateTime.now().toIso8601String(),
-          },
-          {
-            'id': '3',
-            'name': 'Emily Davis',
-            'type': 'Spa Package',
-            'doneBy': 'Sophie Taylor',
-            'startTime': '2:00 PM',
-            'endTime': '4:00 PM',
-            'total': 'IQD150',
-            'isCompleted': false,
-            'colorBar': Colors.purple,
-            'lastUpdated': DateTime.now().toIso8601String(),
-          },
-          {
-            'id': '5',
-            'name': 'Lisa Anderson',
-            'type': 'Hair Coloring',
-            'doneBy': 'Emma White',
-            'startTime': '11:00 AM',
-            'endTime': '1:00 PM',
-            'total': 'IQD120',
-            'isCompleted': false,
-            'colorBar': Colors.pink,
-            'lastUpdated': DateTime.now().toIso8601String(),
-          },
-        ],
-      },
-      {
-        'date': '2024-10-25',
-        'appointments': [
-          {
-            'id': '7',
-            'name': 'Jennifer Lee',
-            'type': 'Facial Treatment',
-            'doneBy': 'Sophie Taylor',
-            'startTime': '2:00 PM',
-            'endTime': '3:30 PM',
-            'total': 'IQD85',
-            'isCompleted': false,
-            'colorBar': Colors.indigo,
-            'lastUpdated': DateTime.now().toIso8601String(),
-          },
-          {
-            'id': '6',
-            'name': 'Robert Brown',
-            'type': 'Full Body Massage',
-            'doneBy': 'Sophie Taylor',
-            'startTime': '9:30 AM',
-            'endTime': '11:00 AM',
-            'total': 'IQD90',
-            'isCompleted': false,
-            'colorBar': Colors.teal,
-            'lastUpdated': DateTime.now().toIso8601String(),
-          },
-          {
-            'id': '8',
-            'name': 'William Taylor',
-            'type': 'Hair Styling',
-            'doneBy': 'James Wilson',
-            'startTime': '4:00 PM',
-            'endTime': '5:00 PM',
-            'total': 'IQD55',
-            'isCompleted': false,
-            'colorBar': Colors.deepPurple,
-            'lastUpdated': DateTime.now().toIso8601String(),
-          }
-        ],
-      },
-      {
-        'date': '2024-10-28', // Next week
-        'appointments': [
-          {
-            'id': '9',
-            'name': 'Maria Garcia',
-            'type': 'Bridal Package',
-            'doneBy': 'Emma White',
-            'startTime': '10:00 AM',
-            'endTime': '2:00 PM',
-            'total': 'IQD250',
-            'isCompleted': false,
-            'colorBar': Colors.red,
-            'lastUpdated': DateTime.now().toIso8601String(),
-          }
-        ],
-      }
     ];
   }
 
@@ -217,10 +228,13 @@ class AppointmentProvider with ChangeNotifier {
     final dateString = DateFormat('yyyy-MM-dd').format(date);
     final dayAppointments = _appointments.firstWhere(
       (day) => day['date'] == dateString,
-      orElse: () => {'date': dateString, 'appointments': []},
+      orElse: () => {
+        'date': dateString,
+        'appointments': <Map<String, dynamic>>[]
+      } as Map<String, dynamic>,
     );
-    return (dayAppointments['appointments'] as List<dynamic>)
-        .map((app) => Appointment.fromJson(app))
+    return ((dayAppointments['appointments'] ?? []) as List<dynamic>)
+        .map((app) => Appointment.fromJson(app as Map<String, dynamic>))
         .toList();
   }
 
@@ -236,42 +250,70 @@ class AppointmentProvider with ChangeNotifier {
       _isSyncing = true;
       notifyListeners();
 
-      // Simulate API delay
       await Future.delayed(Duration(seconds: 1));
-
-      // For development/demo purposes, reload the dummy data
-      // This will reflect any changes made to the dummy data in the code
       _loadInitialData();
-
-      // TODO: In production, replace with actual API call:
-      // final response = await apiClient.getAppointments(lastSyncTime: _lastSyncTime);
-      // _appointments = response.data;
-
       _lastSyncTime = DateTime.now();
     } catch (e) {
       print('Error fetching appointments: $e');
-      // TODO: Handle error appropriately
     } finally {
       _isSyncing = false;
       notifyListeners();
     }
   }
 
-  Future<void> addAppointment(DateTime date, Appointment appointment) async {
+  Future<void> addAppointment(
+    DateTime date, {
+    required String clientName,
+    required List<String> serviceNames,
+    required List<ServiceAppointment> services,
+    required String doneBy,
+    required String startTime,
+    required String endTime,
+    required String total,
+    required String reminder,
+    String? additionalMessage,
+  }) async {
     try {
-      // TODO: Implement API call to create appointment
-      // await apiClient.createAppointment(appointment.toJson());
+      final Map<String, Object> newAppointment = {
+        'id': DateTime.now().millisecondsSinceEpoch.toString(),
+        'name': clientName,
+        'phoneNumber':
+            '', // Add proper phone number handling in add_appointment.dart
+        'type': serviceNames.join(', '),
+        'doneBy': doneBy,
+        'startTime': startTime,
+        'endTime': endTime,
+        'total': total,
+        'isCompleted': false,
+        'colorBar': Colors.blue.value,
+        'lastUpdated': DateTime.now().toIso8601String(),
+        'services': services
+            .map((s) => {
+                  'name': s.name,
+                  'startTime': s.startTime,
+                  'endTime': s.endTime,
+                  'doneBy': s.doneBy,
+                  'price': s.price,
+                } as Map<String, Object>)
+            .toList(),
+        'reminder': reminder,
+      };
+
+      if (additionalMessage != null) {
+        newAppointment['additionalMessage'] = additionalMessage;
+      }
 
       final dateString = DateFormat('yyyy-MM-dd').format(date);
       final dayIndex =
           _appointments.indexWhere((day) => day['date'] == dateString);
 
       if (dayIndex != -1) {
-        _appointments[dayIndex]['appointments'].add(appointment.toJson());
+        (_appointments[dayIndex]['appointments'] as List<dynamic>)
+            .add(newAppointment);
       } else {
         _appointments.add({
           'date': dateString,
-          'appointments': [appointment.toJson()],
+          'appointments': <Map<String, Object>>[newAppointment],
         });
       }
 
@@ -285,19 +327,17 @@ class AppointmentProvider with ChangeNotifier {
   Future<void> updateAppointment(
       DateTime date, Appointment updatedAppointment) async {
     try {
-      // TODO: Implement API call to update appointment
-      // await apiClient.updateAppointment(updatedAppointment.id, updatedAppointment.toJson());
-
       final dateString = DateFormat('yyyy-MM-dd').format(date);
       final dayIndex =
           _appointments.indexWhere((day) => day['date'] == dateString);
 
       if (dayIndex != -1) {
-        final appIndex = _appointments[dayIndex]['appointments']
-            .indexWhere((app) => app['id'] == updatedAppointment.id);
+        final appIndex =
+            (_appointments[dayIndex]['appointments'] as List<dynamic>)
+                .indexWhere((app) => app['id'] == updatedAppointment.id);
 
         if (appIndex != -1) {
-          _appointments[dayIndex]['appointments'][appIndex] =
+          (_appointments[dayIndex]['appointments'] as List<dynamic>)[appIndex] =
               updatedAppointment.toJson();
           notifyListeners();
         }
@@ -310,18 +350,16 @@ class AppointmentProvider with ChangeNotifier {
 
   Future<void> removeAppointment(DateTime date, String appointmentId) async {
     try {
-      // TODO: Implement API call to delete appointment
-      // await apiClient.deleteAppointment(appointmentId);
-
       final dateString = DateFormat('yyyy-MM-dd').format(date);
       final dayIndex =
           _appointments.indexWhere((day) => day['date'] == dateString);
 
       if (dayIndex != -1) {
-        _appointments[dayIndex]['appointments']
+        (_appointments[dayIndex]['appointments'] as List<dynamic>)
             .removeWhere((app) => app['id'] == appointmentId);
 
-        if (_appointments[dayIndex]['appointments'].isEmpty) {
+        if ((_appointments[dayIndex]['appointments'] as List<dynamic>)
+            .isEmpty) {
           _appointments.removeAt(dayIndex);
         }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'CalendarPage.dart';
+import 'client_search.dart'; // Add this import
 
 class BaseLayout extends StatefulWidget {
   final Widget child;
@@ -11,15 +12,16 @@ class BaseLayout extends StatefulWidget {
   _BaseLayoutState createState() => _BaseLayoutState();
 }
 
-class _BaseLayoutState extends State<BaseLayout> with SingleTickerProviderStateMixin {
+class _BaseLayoutState extends State<BaseLayout>
+    with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   late AnimationController _controller;
 
   final List<Widget> _pages = [
     HomePage(),
     CalendarPage(),
-    Placeholder(), // Placeholder for Search page
-    Placeholder(), // Placeholder for Profile page
+    ClientSearchPage(), // Replace Placeholder with ClientSearchPage
+    Placeholder(), // Keep this placeholder for the profile page
   ];
 
   @override
@@ -103,7 +105,8 @@ class _BaseLayoutState extends State<BaseLayout> with SingleTickerProviderStateM
                     children: [
                       _buildNavItem(Icons.home_rounded, 0),
                       _buildNavItem(Icons.calendar_today_rounded, 1),
-                      _buildNavItem(Icons.search_rounded, 2),
+                      _buildNavItem(Icons.people_alt_rounded,
+                          2), // Updated icon for client search
                       _buildNavItem(Icons.person_rounded, 3),
                     ],
                   ),
