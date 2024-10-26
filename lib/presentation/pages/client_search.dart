@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/client_provider.dart';
 import './client_details.dart';
+import './new_client.dart'; // Add this import
 
 class ClientSearchPage extends StatefulWidget {
   @override
@@ -35,6 +36,20 @@ class _ClientSearchPageState extends State<ClientSearchPage> {
     });
   }
 
+  void _navigateToNewClient() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => NewClientPage()),
+    );
+    if (result != null) {
+      // Clear search and refresh list
+      _searchController.clear();
+      setState(() {
+        _filteredClients = null;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<ClientProvider>(
@@ -54,13 +69,33 @@ class _ClientSearchPageState extends State<ClientSearchPage> {
                   children: [
                     Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: Text(
-                        'Clients',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Clients',
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                          IconButton(
+                            icon: Container(
+                              padding: EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.person_add_outlined,
+                                color: Colors.blue,
+                                size: 24,
+                              ),
+                            ),
+                            onPressed: _navigateToNewClient,
+                          ),
+                        ],
                       ),
                     ),
                     Padding(
