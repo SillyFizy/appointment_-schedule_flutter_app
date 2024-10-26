@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'CalendarPage.dart';
-import 'client_search.dart'; // Add this import
+import 'client_search.dart';
 
 class BaseLayout extends StatefulWidget {
   final Widget child;

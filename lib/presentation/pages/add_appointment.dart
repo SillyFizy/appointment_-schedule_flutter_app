@@ -6,6 +6,13 @@ import '../providers/service_provider.dart';
 import '../providers/appointment_provider.dart';
 
 class AddAppointment extends StatefulWidget {
+  final String? preselectedClient;
+
+  const AddAppointment({
+    Key? key,
+    this.preselectedClient,
+  }) : super(key: key);
+
   @override
   _AddAppointmentState createState() => _AddAppointmentState();
 }
@@ -25,6 +32,9 @@ class _AddAppointmentState extends State<AddAppointment> {
   void initState() {
     super.initState();
     _calculateEndTime();
+    if (widget.preselectedClient != null) {
+      _selectedClient = widget.preselectedClient!;
+    }
   }
 
   @override

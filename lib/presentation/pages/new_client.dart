@@ -6,6 +6,15 @@ import '../providers/client_provider.dart';
 import 'package:intl/intl.dart';
 
 class NewClientPage extends StatefulWidget {
+  final bool isEditing;
+  final Client? clientToEdit;
+
+  const NewClientPage({
+    Key? key,
+    this.isEditing = false,
+    this.clientToEdit,
+  }) : super(key: key);
+
   @override
   _NewClientPageState createState() => _NewClientPageState();
 }
@@ -21,6 +30,22 @@ class _NewClientPageState extends State<NewClientPage> {
 
   final _formKey = GlobalKey<FormState>();
   bool _autoValidate = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isEditing && widget.clientToEdit != null) {
+      _nameController.text = widget.clientToEdit!.name;
+      _phoneController.text = widget.clientToEdit!.phoneNumber;
+      _noteController.text = widget.clientToEdit!.note ?? '';
+      _locationController.text = widget.clientToEdit!.location ?? '';
+      _selectedBirthday = widget.clientToEdit!.birthday;
+      _addToContacts = widget.clientToEdit!.addToContacts;
+      _showMoreOptions = widget.clientToEdit!.note != null ||
+          widget.clientToEdit!.location != null ||
+          widget.clientToEdit!.birthday != null;
+    }
+  }
 
   @override
   void dispose() {
@@ -58,7 +83,7 @@ class _NewClientPageState extends State<NewClientPage> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'New client',
+          widget.isEditing ? 'Edit client' : 'New client',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
         ),
         actions: [
@@ -325,14 +350,28 @@ class _NewClientPageState extends State<NewClientPage> {
       final clientProvider =
           Provider.of<ClientProvider>(context, listen: false);
 
-      clientProvider.addClient(
-        name: _nameController.text.trim(),
-        phoneNumber: _phoneController.text.trim(),
-        note: _noteController.text.trim(),
-        location: _locationController.text.trim(),
-        birthday: _selectedBirthday,
-        addToContacts: _addToContacts,
-      );
+      if (widget.isEditing && widget.clientToEdit != null) {
+        // Update existing client
+        final updatedClient = widget.clientToEdit!.copyWith(
+          name: _nameController.text.trim(),
+          phoneNumber: _phoneController.text.trim(),
+          note: _noteController.text.trim(),
+          location: _locationController.text.trim(),
+          birthday: _selectedBirthday,
+          addToContacts: _addToContacts,
+        );
+        clientProvider.updateClient(updatedClient);
+      } else {
+        // Add new client
+        clientProvider.addClient(
+          name: _nameController.text.trim(),
+          phoneNumber: _phoneController.text.trim(),
+          note: _noteController.text.trim(),
+          location: _locationController.text.trim(),
+          birthday: _selectedBirthday,
+          addToContacts: _addToContacts,
+        );
+      }
 
       Navigator.pop(context, _nameController.text.trim());
     }
