@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:provider/provider.dart';
 import '../providers/service_provider.dart';
+import '../../domain/models/doctor.dart';
 
 class Service {
   final String id;
@@ -10,6 +12,7 @@ class Service {
   final Color color;
   final bool isDefaultForNewClients;
   final String priceType;
+  final List<Doctor> doctors;
 
   Service({
     required this.id,
@@ -19,6 +22,7 @@ class Service {
     required this.color,
     this.isDefaultForNewClients = false,
     this.priceType = 'Fixed price',
+    required this.doctors,
   });
 
   // Convert Service to ServiceModel
@@ -29,6 +33,7 @@ class Service {
       duration: this.duration,
       price: this.price,
       color: this.color,
+      doctors: this.doctors,
     );
   }
 
@@ -40,14 +45,15 @@ class Service {
       duration: model.duration,
       price: model.price,
       color: model.color,
+      doctors: model.doctors,
     );
   }
 }
 
 class EditServicePage extends StatefulWidget {
-  final Service service;
+  final Service? service;
 
-  EditServicePage({Key? key, required this.service}) : super(key: key);
+  EditServicePage({Key? key, this.service}) : super(key: key);
 
   @override
   _EditServicePageState createState() => _EditServicePageState();
@@ -60,16 +66,19 @@ class _EditServicePageState extends State<EditServicePage> {
   late bool _isDefaultForNewClients;
   late String _priceType;
   late Duration _duration;
+  List<Doctor> _selectedDoctors = [];
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.service.name);
-    _priceController = TextEditingController(text: widget.service.price.toString());
-    _selectedColor = widget.service.color;
-    _isDefaultForNewClients = widget.service.isDefaultForNewClients;
-    _priceType = widget.service.priceType;
-    _duration = widget.service.duration;
+    _nameController = TextEditingController(text: widget.service?.name ?? '');
+    _priceController =
+        TextEditingController(text: (widget.service?.price ?? 0).toString());
+    _selectedColor = widget.service?.color ?? Colors.blue;
+    _isDefaultForNewClients = widget.service?.isDefaultForNewClients ?? false;
+    _priceType = widget.service?.priceType ?? 'Fixed price';
+    _duration = widget.service?.duration ?? Duration(hours: 1);
+    _selectedDoctors = widget.service?.doctors ?? [];
   }
 
   @override
@@ -99,9 +108,13 @@ class _EditServicePageState extends State<EditServicePage> {
             SizedBox(height: 16),
             _buildColorPicker(),
             SizedBox(height: 16),
-            _buildDefaultServiceSwitch(),
+            _buildDoctorsSection(),
             SizedBox(height: 24),
-            Text('Price & duration', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('Price & duration',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
             SizedBox(height: 16),
             _buildPriceSection(),
             SizedBox(height: 16),
@@ -109,6 +122,67 @@ class _EditServicePageState extends State<EditServicePage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDoctorsSection() {
+    final serviceProvider = Provider.of<ServiceProvider>(context);
+    final allDoctors = serviceProvider.doctors;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'DOCTORS',
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+        ),
+        SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            children: allDoctors
+                .map((doctor) => CheckboxListTile(
+                      title: Text(
+                        doctor.name,
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      subtitle: Text(
+                        doctor.specialty,
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      value: _selectedDoctors.contains(doctor),
+                      onChanged: (bool? value) {
+                        setState(() {
+                          if (value == true) {
+                            _selectedDoctors.add(doctor);
+                          } else {
+                            _selectedDoctors
+                                .removeWhere((d) => d.id == doctor.id);
+                          }
+                        });
+                      },
+                      activeColor: Colors.blue,
+                    ))
+                .toList(),
+          ),
+        ),
+        if (_selectedDoctors.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Text(
+              'Please select at least one doctor',
+              style: TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ),
+      ],
     );
   }
 
@@ -177,7 +251,8 @@ class _EditServicePageState extends State<EditServicePage> {
           ),
         ),
         SizedBox(width: 8),
-        Text(_getColorName(_selectedColor), style: TextStyle(color: Colors.white)),
+        Text(_getColorName(_selectedColor),
+            style: TextStyle(color: Colors.white)),
       ],
     );
   }
@@ -186,7 +261,8 @@ class _EditServicePageState extends State<EditServicePage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('Default service for new clients', style: TextStyle(color: Colors.white)),
+        Text('Default service for new clients',
+            style: TextStyle(color: Colors.white)),
         Switch(
           value: _isDefaultForNewClients,
           onChanged: (value) {
@@ -218,8 +294,7 @@ class _EditServicePageState extends State<EditServicePage> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            items: ['Fixed price', 'Variable']
-                .map((String value) {
+            items: ['Fixed price', 'Variable'].map((String value) {
               return DropdownMenuItem<String>(
                 value: value,
                 child: Text(value),
@@ -285,7 +360,10 @@ class _EditServicePageState extends State<EditServicePage> {
                       padding: const EdgeInsets.all(10),
                       child: Text(
                         'Select Duration',
-                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold),
                       ),
                     ),
                     SizedBox(
@@ -298,7 +376,9 @@ class _EditServicePageState extends State<EditServicePage> {
                             maxValue: 23,
                             onChanged: (value) {
                               setModalState(() {
-                                _duration = Duration(hours: value, minutes: _duration.inMinutes % 60);
+                                _duration = Duration(
+                                    hours: value,
+                                    minutes: _duration.inMinutes % 60);
                               });
                             },
                             label: 'hours',
@@ -309,7 +389,8 @@ class _EditServicePageState extends State<EditServicePage> {
                             maxValue: 59,
                             onChanged: (value) {
                               setModalState(() {
-                                _duration = Duration(hours: _duration.inHours, minutes: value);
+                                _duration = Duration(
+                                    hours: _duration.inHours, minutes: value);
                               });
                             },
                             label: 'minutes',
@@ -394,17 +475,30 @@ class _EditServicePageState extends State<EditServicePage> {
     return 'Custom';
   }
 
-void _saveService() {
-    final updatedService = Service(
-      id: widget.service.id,
+  void _saveService() {
+    if (_selectedDoctors.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select at least one doctor for this service'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final service = Service(
+      id: widget.service?.id ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
       name: _nameController.text,
       duration: _duration,
-      price: int.tryParse(_priceController.text) ?? widget.service.price,
+      price: int.tryParse(_priceController.text) ?? 0,
       color: _selectedColor,
       isDefaultForNewClients: _isDefaultForNewClients,
       priceType: _priceType,
+      doctors: _selectedDoctors,
     );
-    Navigator.of(context).pop(updatedService.toServiceModel());
+
+    Navigator.of(context).pop(service.toServiceModel());
   }
 
   @override

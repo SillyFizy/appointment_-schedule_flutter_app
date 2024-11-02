@@ -36,20 +36,18 @@ class Appointment {
   });
 
   factory Appointment.fromJson(Map<String, dynamic> json) {
-    // Handle services that might be either strings or maps
     List<ServiceAppointment> parseServices(dynamic servicesJson) {
       if (servicesJson == null) return [];
 
       if (servicesJson is List<dynamic>) {
         return servicesJson.map((service) {
           if (service is String) {
-            // Convert legacy string format to ServiceAppointment
             return ServiceAppointment(
               name: service,
               startTime: json['startTime'] as String? ?? '',
               endTime: json['endTime'] as String? ?? '',
               doneBy: json['doneBy'] as String? ?? '',
-              price: 0, // Default price for legacy data
+              price: 0,
             );
           } else if (service is Map<String, dynamic>) {
             return ServiceAppointment.fromJson(service);
@@ -106,6 +104,17 @@ class Appointment {
       'reminder': reminder,
     };
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Appointment &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          lastUpdated == other.lastUpdated;
+
+  @override
+  int get hashCode => id.hashCode ^ lastUpdated.hashCode;
 }
 
 class ServiceAppointment {
@@ -114,6 +123,7 @@ class ServiceAppointment {
   final String endTime;
   final String doneBy;
   final int price;
+  final String? doctorId;
 
   ServiceAppointment({
     required this.name,
@@ -121,6 +131,7 @@ class ServiceAppointment {
     required this.endTime,
     required this.doneBy,
     required this.price,
+    this.doctorId,
   });
 
   factory ServiceAppointment.fromJson(Map<String, dynamic> json) {
@@ -130,6 +141,7 @@ class ServiceAppointment {
       endTime: json['endTime'] as String? ?? '',
       doneBy: json['doneBy'] as String? ?? '',
       price: json['price'] as int? ?? 0,
+      doctorId: json['doctorId'] as String?,
     );
   }
 
@@ -140,12 +152,15 @@ class ServiceAppointment {
       'endTime': endTime,
       'doneBy': doneBy,
       'price': price,
+      'doctorId': doctorId,
     };
   }
 }
 
 class AppointmentProvider with ChangeNotifier {
   List<Map<String, dynamic>> _appointments = [];
+  Map<String, DateTime> _lastUpdateTimes = {};
+  Set<String> _newAppointments = {};
   DateTime? _lastSyncTime;
   bool _isSyncing = false;
 
@@ -158,13 +173,23 @@ class AppointmentProvider with ChangeNotifier {
 
   void _loadInitialData() {
     _appointments = _getDummyData();
+    // Initialize last update times for existing appointments
+    for (var dayAppointments in _appointments) {
+      for (var appointment
+          in (dayAppointments['appointments'] as List<dynamic>)) {
+        final id = appointment['id'] as String;
+        final lastUpdated =
+            DateTime.parse(appointment['lastUpdated'] as String);
+        _lastUpdateTimes[id] = lastUpdated;
+      }
+    }
     notifyListeners();
   }
 
   List<Map<String, dynamic>> _getDummyData() {
     return [
       {
-        'date': '2024-10-24',
+        'date': '2024-10-29',
         'appointments': [
           {
             'id': '1',
@@ -250,8 +275,51 @@ class AppointmentProvider with ChangeNotifier {
       _isSyncing = true;
       notifyListeners();
 
+      // Simulate API call
       await Future.delayed(Duration(seconds: 1));
-      _loadInitialData();
+
+      // Get new data
+      final newData = _getDummyData();
+
+      // Compare and update only changed appointments
+      for (var dayData in newData) {
+        final dateString = dayData['date'] as String;
+        final newAppointments = dayData['appointments'] as List<dynamic>;
+
+        // Find or create the day in existing appointments
+        var existingDayIndex =
+            _appointments.indexWhere((day) => day['date'] == dateString);
+        if (existingDayIndex == -1) {
+          _appointments.add({'date': dateString, 'appointments': []});
+          existingDayIndex = _appointments.length - 1;
+        }
+
+        // Process each appointment
+        for (var newAppointment in newAppointments) {
+          final id = newAppointment['id'] as String;
+          final newLastUpdated =
+              DateTime.parse(newAppointment['lastUpdated'] as String);
+
+          // Check if this is a new or updated appointment
+          if (!_lastUpdateTimes.containsKey(id)) {
+            // New appointment
+            _newAppointments.add(id);
+            _lastUpdateTimes[id] = newLastUpdated;
+            (_appointments[existingDayIndex]['appointments'] as List<dynamic>)
+                .add(newAppointment);
+          } else if (newLastUpdated.isAfter(_lastUpdateTimes[id]!)) {
+            // Updated appointment
+            _lastUpdateTimes[id] = newLastUpdated;
+            var appointments = _appointments[existingDayIndex]['appointments']
+                as List<dynamic>;
+            var index = appointments.indexWhere((a) => a['id'] == id);
+            if (index != -1) {
+              appointments[index] = newAppointment;
+            }
+          }
+        }
+      }
+
       _lastSyncTime = DateTime.now();
     } catch (e) {
       print('Error fetching appointments: $e');
@@ -274,11 +342,13 @@ class AppointmentProvider with ChangeNotifier {
     String? additionalMessage,
   }) async {
     try {
+      final String id = DateTime.now().millisecondsSinceEpoch.toString();
+      final DateTime now = DateTime.now();
+
       final Map<String, Object> newAppointment = {
-        'id': DateTime.now().millisecondsSinceEpoch.toString(),
+        'id': id,
         'name': clientName,
-        'phoneNumber':
-            '', // Add proper phone number handling in add_appointment.dart
+        'phoneNumber': '',
         'type': serviceNames.join(', '),
         'doneBy': doneBy,
         'startTime': startTime,
@@ -286,7 +356,7 @@ class AppointmentProvider with ChangeNotifier {
         'total': total,
         'isCompleted': false,
         'colorBar': Colors.blue.value,
-        'lastUpdated': DateTime.now().toIso8601String(),
+        'lastUpdated': now.toIso8601String(),
         'services': services
             .map((s) => {
                   'name': s.name,
@@ -317,33 +387,13 @@ class AppointmentProvider with ChangeNotifier {
         });
       }
 
+      // Track the new appointment
+      _newAppointments.add(id);
+      _lastUpdateTimes[id] = now;
+
       notifyListeners();
     } catch (e) {
       print('Error adding appointment: $e');
-      throw e;
-    }
-  }
-
-  Future<void> updateAppointment(
-      DateTime date, Appointment updatedAppointment) async {
-    try {
-      final dateString = DateFormat('yyyy-MM-dd').format(date);
-      final dayIndex =
-          _appointments.indexWhere((day) => day['date'] == dateString);
-
-      if (dayIndex != -1) {
-        final appIndex =
-            (_appointments[dayIndex]['appointments'] as List<dynamic>)
-                .indexWhere((app) => app['id'] == updatedAppointment.id);
-
-        if (appIndex != -1) {
-          (_appointments[dayIndex]['appointments'] as List<dynamic>)[appIndex] =
-              updatedAppointment.toJson();
-          notifyListeners();
-        }
-      }
-    } catch (e) {
-      print('Error updating appointment: $e');
       throw e;
     }
   }

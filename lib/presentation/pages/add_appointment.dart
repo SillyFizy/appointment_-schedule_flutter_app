@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'add_client.dart';
 import '../providers/service_provider.dart';
 import '../providers/appointment_provider.dart';
+import '../../domain/models/doctor.dart';
 
 class AddAppointment extends StatefulWidget {
   final String? preselectedClient;
@@ -24,6 +25,7 @@ class _AddAppointmentState extends State<AddAppointment> {
   String _reminder = '';
   String _selectedClient = '';
   List<ServiceModel> _selectedServices = [];
+  Map<String, Doctor> _selectedDoctors = {};
   TextEditingController _messageController = TextEditingController();
 
   bool _showErrors = false;
@@ -275,7 +277,7 @@ class _AddAppointmentState extends State<AddAppointment> {
                               ),
                             ),
                             subtitle: Text(
-                              '${service.duration.inMinutes} min - \$${service.price}',
+                              '${service.duration.inMinutes} min - ${service.formattedPrice}',
                               style: TextStyle(color: Colors.grey[600]),
                             ),
                             trailing: Icon(Icons.add, color: Colors.blue),
@@ -311,22 +313,51 @@ class _AddAppointmentState extends State<AddAppointment> {
         border: Border.all(color: Colors.grey),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(service.name, style: TextStyle(fontWeight: FontWeight.bold)),
-              Text('${service.duration.inMinutes} min - \$${service.price}'),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(service.name,
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                      '${service.duration.inMinutes} min - ${service.formattedPrice}'),
+                ],
+              ),
+              IconButton(
+                icon: Icon(Icons.close, color: Colors.red),
+                onPressed: () {
+                  setState(() {
+                    _selectedServices.remove(service);
+                    _selectedDoctors.remove(service.id);
+                    _calculateEndTime();
+                  });
+                },
+              ),
             ],
           ),
-          IconButton(
-            icon: Icon(Icons.close, color: Colors.red),
-            onPressed: () {
+          SizedBox(height: 8),
+          DropdownButtonFormField<Doctor>(
+            decoration: InputDecoration(
+              labelText: 'Select Doctor',
+              border: OutlineInputBorder(),
+            ),
+            value: _selectedDoctors[service.id],
+            items: service.doctors.map((Doctor doctor) {
+              return DropdownMenuItem<Doctor>(
+                value: doctor,
+                child: Text(doctor.name),
+              );
+            }).toList(),
+            onChanged: (Doctor? newValue) {
               setState(() {
-                _selectedServices.remove(service);
-                _calculateEndTime(); // Recalculate end time after removing a service
+                if (newValue != null) {
+                  _selectedDoctors[service.id] = newValue;
+                }
               });
             },
           ),
@@ -519,6 +550,19 @@ class _AddAppointmentState extends State<AddAppointment> {
     setState(() {
       _showErrors = true;
     });
+    // Check if all services have doctors assigned
+    bool allServicesHaveDoctors = _selectedServices
+        .every((service) => _selectedDoctors.containsKey(service.id));
+
+    if (!allServicesHaveDoctors) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select a doctor for each service'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     if (_selectedClient.isNotEmpty &&
         _selectedServices.isNotEmpty &&
@@ -547,8 +591,7 @@ class _AddAppointmentState extends State<AddAppointment> {
             name: service.name,
             startTime: serviceStartTime,
             endTime: serviceEndTime,
-            doneBy: service
-                .name, // You might want to modify this based on your needs
+            doneBy: _selectedDoctors[service.id]!.name,
             price: service.price,
           ),
         );
@@ -562,8 +605,7 @@ class _AddAppointmentState extends State<AddAppointment> {
           clientName: _selectedClient,
           serviceNames: _selectedServices.map((s) => s.name).toList(),
           services: serviceAppointments,
-          doneBy: _selectedServices
-              .first.name, // You might want to modify this based on your needs
+          doneBy: serviceAppointments.map((s) => s.doneBy).join(', '),
           startTime: _startTime.format(context),
           endTime: _endTime.format(context),
           total:
