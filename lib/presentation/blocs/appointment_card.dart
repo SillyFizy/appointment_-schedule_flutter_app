@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../providers/appointment_provider.dart';
 import '../pages/appointment_details.dart';
+import '../../utils/currency_formatter.dart';
 
 class AppointmentCard extends StatelessWidget {
   final Appointment appointment;
@@ -46,9 +47,7 @@ class AppointmentCard extends StatelessWidget {
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  Icon(Icons.schedule, 
-                       color: appointment.colorBar,
-                       size: 20),
+                  Icon(Icons.schedule, color: appointment.colorBar, size: 20),
                   SizedBox(width: 8),
                   Text(
                     '${appointment.startTime} - ${appointment.endTime}',
@@ -61,15 +60,17 @@ class AppointmentCard extends StatelessWidget {
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
-                      color: appointment.isCompleted 
-                          ? Colors.green.withOpacity(0.1) 
+                      color: appointment.isCompleted
+                          ? Colors.green.withOpacity(0.1)
                           : Colors.orange.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       appointment.isCompleted ? 'Completed' : 'Pending',
                       style: TextStyle(
-                        color: appointment.isCompleted ? Colors.green : Colors.orange,
+                        color: appointment.isCompleted
+                            ? Colors.green
+                            : Colors.orange,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -89,7 +90,7 @@ class AppointmentCard extends StatelessWidget {
                         backgroundColor: appointment.colorBar.withOpacity(0.1),
                         radius: 20,
                         child: Text(
-                          appointment.name.isNotEmpty 
+                          appointment.name.isNotEmpty
                               ? appointment.name[0].toUpperCase()
                               : '?',
                           style: TextStyle(
@@ -113,9 +114,8 @@ class AppointmentCard extends StatelessWidget {
                             SizedBox(height: 4),
                             Row(
                               children: [
-                                Icon(Icons.person_outline, 
-                                     size: 16,
-                                     color: Colors.grey[600]),
+                                Icon(Icons.person_outline,
+                                    size: 16, color: Colors.grey[600]),
                                 SizedBox(width: 4),
                                 Text(
                                   appointment.doneBy,
@@ -133,7 +133,10 @@ class AppointmentCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            appointment.total,
+                            CurrencyFormatter.formatIQD(int.parse(appointment
+                                .total
+                                .replaceAll('IQD', '')
+                                .trim())),
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
@@ -163,8 +166,7 @@ class AppointmentCard extends StatelessWidget {
                       child: Row(
                         children: [
                           Icon(Icons.spa_outlined,
-                               size: 20,
-                               color: appointment.colorBar),
+                              size: 20, color: appointment.colorBar),
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../providers/appointment_provider.dart';
+import '../../utils/currency_formatter.dart';
 
 class AppointmentDetailsView extends StatelessWidget {
   final Appointment appointment;
@@ -83,7 +84,8 @@ class AppointmentDetailsView extends StatelessWidget {
           ),
           Spacer(),
           Text(
-            'Total: ${appointment.total}',
+            CurrencyFormatter.formatIQD(
+                int.parse(appointment.total.replaceAll('IQD', '').trim())),
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -181,7 +183,8 @@ class AppointmentDetailsView extends StatelessWidget {
           SizedBox(height: 4),
           _buildInfoRow(Icons.person_outline, 'Staff', service.doneBy),
           SizedBox(height: 4),
-          _buildInfoRow(Icons.attach_money, 'Price', 'IQD ${service.price}'),
+          _buildInfoRow(Icons.attach_money, 'Price',
+              CurrencyFormatter.formatIQD(service.price)),
         ],
       ),
     );
